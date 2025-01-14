@@ -1,0 +1,14 @@
+pyautogen>=0.2.0
+python-dotenv
+requests
+fastapi
+uvicorn
+pydantic
+pytest
+httpx
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
+redis
+rq
+psutil
