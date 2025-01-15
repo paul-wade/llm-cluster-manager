@@ -1,7 +1,6 @@
 import autogen
 from dotenv import load_dotenv
 import os
-import requests
 import sys
 import logging
 import time
@@ -10,6 +9,13 @@ from urllib3.util.retry import Retry
 from config.config import LLM_CONFIG, AGENT_CONFIG, LMSTUDIO_CONFIG, PROJECT_CONFIG
 from utils.file_utils import ensure_directory, create_project_structure
 from utils.lmstudio_utils import check_generation_status, wait_for_generation
+import requests
+import asyncio
+
+# Set console encoding to UTF-8
+import codecs
+sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer)
+sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer)
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG if os.getenv('DEBUG') == 'True' else logging.INFO,
@@ -32,14 +38,18 @@ def create_http_session():
 
 def check_lmstudio_connection():
     """Check if LMStudio server is running and responding"""
-    logging.debug("Attempting to connect to LMStudio server...")
-    status = check_generation_status(LMSTUDIO_CONFIG['base_url'], LMSTUDIO_CONFIG['api_key'])
-    
-    if status["status"] == "ready":
-        logging.info("[OK] Successfully connected to LMStudio server")
+    try:
+        logging.debug("Attempting to connect to LMStudio server...")
+        response = requests.get(
+            f"{LMSTUDIO_CONFIG['base_url']}/models",
+            headers={"Authorization": f"Bearer {LMSTUDIO_CONFIG['api_key']}"}
+        )
+        response.raise_for_status()
+        models = response.json()
+        logging.info(f"[OK] Successfully connected to LMStudio server. Available models: {models}")
         return True
-    else:
-        logging.error(f"Failed to connect to LMStudio server: {status.get('error')}")
+    except Exception as e:
+        logging.error(f"Failed to connect to LMStudio server: {str(e)}")
         return False
 
 def setup_project_directory():
@@ -67,101 +77,143 @@ class AsyncUserProxyAgent(autogen.UserProxyAgent):
     async def a_initiate_chat(self, manager, message):
         """Asynchronous version of initiate_chat that supports polling"""
         try:
-            # Start the chat with initial message
-            response = await manager.a_receive(message, self)
+            logging.info("Starting chat with message: %s", message)
             
-            # If we get a request ID back, start polling for completion
-            if isinstance(response, dict) and response.get("request_id"):
-                status = wait_for_generation(
-                    LMSTUDIO_CONFIG['base_url'],
-                    LMSTUDIO_CONFIG['api_key'],
-                    response["request_id"]
-                )
-                
-                if status["status"] == "ready":
-                    return status["data"]
-                else:
-                    logging.error(f"Generation failed or timed out: {status.get('error')}")
-                    return None
+            # Create the initial message with the system context
+            message_with_context = f"""System: {self.system_message}
+
+User: {message}"""
             
+            # Make the chat completion request
+            response = await manager.a_receive(message_with_context, self)
+            
+            logging.info("Received response: %s", response)
             return response
+
         except Exception as e:
-            logging.error(f"Error in async chat: {str(e)}")
+            logging.error(f"Error in async chat: {str(e)}", exc_info=True)
             return None
 
 def main():
-    logging.info("Starting agent network initialization...")
-    
-    # Check LMStudio connection first
-    if not check_lmstudio_connection():
-        logging.error("Failed to connect to LMStudio. Exiting...")
-        sys.exit(1)
-        
-    # Set up project directory
-    if not setup_project_directory():
-        logging.error("Failed to set up project directory. Exiting...")
-        sys.exit(1)
-
-    logging.info("Creating development agents...")
     try:
+        logging.basicConfig(level=logging.DEBUG)
+        
+        # Create HTTP session with retry logic
+        create_http_session()
+
+        # Check LMStudio connection
+        if not check_lmstudio_connection():
+            logging.error("Failed to connect to LMStudio server")
+            sys.exit(1)
+
+        # Setup project directory
+        setup_project_directory()
+
         # Create agents
-        architect = autogen.AssistantAgent(
-            name=AGENT_CONFIG["architect"]["name"],
-            system_message=AGENT_CONFIG["architect"]["system_message"],
-            llm_config=LLM_CONFIG
-        )
-        logging.debug("Created architect agent")
+        try:
+            # Create agents with enhanced error handling and logging
+            logging.info("Creating architect agent with config: %s", LLM_CONFIG)
+            architect = autogen.AssistantAgent(
+                name="Software_Architect",
+                llm_config=LLM_CONFIG,
+                system_message="You are a senior software architect. Design system architecture and make technical decisions."
+            )
+            logging.debug("Created architect agent successfully")
 
-        developer = autogen.AssistantAgent(
-            name=AGENT_CONFIG["developer"]["name"],
-            system_message=AGENT_CONFIG["developer"]["system_message"],
-            llm_config=LLM_CONFIG
-        )
-        logging.debug("Created developer agent")
+            logging.info("Creating developer agent with config: %s", LLM_CONFIG)
+            developer = autogen.AssistantAgent(
+                name="Developer",
+                llm_config=LLM_CONFIG,
+                system_message="You are a skilled software developer. Write clean code and implement features."
+            )
+            logging.debug("Created developer agent successfully")
 
-        tester = autogen.AssistantAgent(
-            name=AGENT_CONFIG["tester"]["name"],
-            system_message=AGENT_CONFIG["tester"]["system_message"],
-            llm_config=LLM_CONFIG
-        )
-        logging.debug("Created tester agent")
+            logging.info("Creating tester agent with config: %s", LLM_CONFIG)
+            tester = autogen.AssistantAgent(
+                name="QA_Engineer",
+                llm_config=LLM_CONFIG,
+                system_message="You are a QA engineer. Test code and ensure quality."
+            )
+            logging.debug("Created tester agent successfully")
 
-        user_proxy = AsyncUserProxyAgent(
-            name="User_Proxy",
-            system_message="You are a user proxy that helps coordinate the development process.",
-            human_input_mode="TERMINATE",
-            max_consecutive_auto_reply=10,
-            code_execution_config={"use_docker": False}
-        )
-        logging.debug("Created user proxy agent")
+            logging.info("Creating user proxy agent")
+            user_proxy = autogen.UserProxyAgent(
+                name="User_Proxy",
+                human_input_mode="NEVER",
+                max_consecutive_auto_reply=10,
+                llm_config=LLM_CONFIG,
+                code_execution_config={"work_dir": "fastapi_project"},
+                system_message="You are a user proxy that helps coordinate development."
+            )
+            logging.debug("Created user proxy agent successfully")
 
-        logging.info("Setting up group chat...")
-        # Create group chat
-        groupchat = autogen.GroupChat(
-            agents=[user_proxy, architect, developer, tester],
-            messages=[],
-            max_round=50
-        )
-        logging.debug("Created group chat")
+            logging.info("Setting up group chat...")
+            # Create group chat with proper error handling
+            try:
+                # Create initial messages for the group chat
+                initial_messages = [
+                    {
+                        "role": "system",
+                        "content": "This is a group chat for developing a FastAPI project. Each agent has a specific role and responsibilities."
+                    }
+                ]
 
-        manager = autogen.GroupChatManager(groupchat=groupchat, llm_config=LLM_CONFIG)
-        logging.debug("Created chat manager")
+                groupchat = autogen.GroupChat(
+                    agents=[user_proxy, architect, developer, tester],
+                    messages=initial_messages,
+                    max_round=50,
+                    speaker_selection_method="round_robin",
+                    allow_repeat_speaker=False
+                )
+                logging.debug("Created group chat successfully")
 
-        logging.info("Starting development task...")
-        # Start with a more comprehensive API project
-        user_proxy.a_initiate_chat(
-            manager,
-            message="""Create a FastAPI project with the following features:
-            1. User registration and login with JWT authentication
-            2. Basic CRUD operations for a 'posts' resource
-            3. Proper project structure with routers, models, and schemas
-            4. Basic input validation and error handling
-            5. SQLite database integration
-            
-            Start by designing the project structure and implementing the core setup."""
-        )
+                # Create the chat manager with specific configuration
+                manager = autogen.GroupChatManager(
+                    groupchat=groupchat,
+                    llm_config={
+                        **LLM_CONFIG,
+                        "functions": None,  # No function calling needed
+                        "temperature": 0.7,  # Set temperature for more focused responses
+                        "request_timeout": 120,  # Lower timeout for faster responses
+                    },
+                    system_message="""You are a chat manager responsible for coordinating the development process.
+                    Your role is to:
+                    1. Ensure each agent contributes according to their role
+                    2. Keep the conversation focused on the development task
+                    3. Summarize progress and next steps
+                    4. Handle any conflicts or misunderstandings"""
+                )
+                logging.debug("Created chat manager successfully")
+
+                logging.info("Starting development task...")
+                # Start with a more comprehensive API project
+                initial_message = """Create a FastAPI project with the following features:
+                1. User registration and login with JWT authentication
+                2. Basic CRUD operations for a 'posts' resource
+                3. Proper project structure with routers, models, and schemas
+                4. Basic input validation and error handling
+                5. SQLite database integration
+                
+                Start by designing the project structure and implementing the core setup."""
+
+                logging.info("Sending initial message to chat: %s", initial_message)
+                response = user_proxy.initiate_chat(manager, message=initial_message)
+                logging.info("Received response from chat: %s", response)
+
+                if not response:
+                    logging.error("No response received from chat manager")
+                    raise Exception("Chat manager failed to respond")
+
+            except Exception as e:
+                logging.error(f"Error in chat initialization: {str(e)}", exc_info=True)
+                raise
+
+        except Exception as e:
+            logging.error(f"Error during initialization: {str(e)}", exc_info=True)
+            sys.exit(1)
+
     except Exception as e:
-        logging.error(f"Error during initialization: {str(e)}", exc_info=True)
+        logging.error(f"Error in main: {str(e)}", exc_info=True)
         sys.exit(1)
 
 if __name__ == "__main__":

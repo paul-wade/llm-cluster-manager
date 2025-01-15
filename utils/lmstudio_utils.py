@@ -4,6 +4,7 @@ import time
 from typing import Optional, Dict, Any
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+from config.config import LMSTUDIO_CONFIG
 
 def create_http_session():
     """Create a session with retry logic"""
@@ -13,8 +14,10 @@ def create_http_session():
         backoff_factor=1,
         status_forcelist=[408, 429, 500, 502, 503, 504]
     )
-    session.mount('http://', HTTPAdapter(max_retries=retries))
-    session.mount('https://', HTTPAdapter(max_retries=retries))
+    adapter = HTTPAdapter(max_retries=retries)
+    # Extract base URL without /v1
+    base_url = LMSTUDIO_CONFIG['base_url'].split('/v1')[0]
+    session.mount(base_url, adapter)
     return session
 
 def check_generation_status(base_url: str, api_key: str, request_id: Optional[str] = None) -> Dict[str, Any]:
@@ -50,13 +53,14 @@ def check_generation_status(base_url: str, api_key: str, request_id: Optional[st
         
         # Otherwise just check if the server is responsive
         response = session.get(
-            f"{base_url}/health",
+            f"{base_url}/models",  # Use models endpoint instead of health
             headers={"Authorization": f"Bearer {api_key}"},
             timeout=5
         )
+        response.raise_for_status()
         return {
-            "status": "ready" if response.status_code == 200 else "error",
-            "error": None if response.status_code == 200 else f"Health check failed with code {response.status_code}"
+            "status": "ready",
+            "error": None
         }
     except requests.exceptions.RequestException as e:
         return {
@@ -88,3 +92,18 @@ def wait_for_generation(base_url: str, api_key: str, request_id: str,
         "status": "timeout",
         "error": f"Generation not completed after {max_retries} attempts"
     }
+
+def check_lmstudio_connection():
+    """Check if LMStudio server is running and responding"""
+    try:
+        logging.debug("Attempting to connect to LMStudio server...")
+        session = create_http_session()
+        # Use models endpoint instead of health check
+        response = session.get(f"{LMSTUDIO_CONFIG['base_url']}/models")
+        response.raise_for_status()
+        models = response.json()
+        logging.info(f"[OK] Successfully connected to LMStudio server. Available models: {[m['id'] for m in models]}")
+        return True
+    except Exception as e:
+        logging.error(f"Failed to connect to LMStudio server: {str(e)}")
+        return False

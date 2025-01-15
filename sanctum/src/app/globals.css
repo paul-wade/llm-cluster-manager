@@ -1,0 +1,242 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #0B0B14;
+  --foreground: #ffffff;
+  --card: rgba(19, 20, 31, 0.7);
+  --card-foreground: #ffffff;
+  --primary: #6366F1;
+  --primary-foreground: #ffffff;
+  --muted: #a1a1aa;
+}
+
+body {
+  color: var(--foreground);
+  background: radial-gradient(circle at 50% -20%, #1a1b2e, #0B0B14);
+  min-height: 100vh;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+@layer utilities {
+  .rotating-rune {
+    animation: rotate 8s linear infinite;
+    transition: all 0.3s ease;
+    filter: drop-shadow(0 0 10px currentColor);
+  }
+
+  .group:hover .rotating-rune {
+    animation-duration: 4s;
+    filter: brightness(1.2) drop-shadow(0 0 15px currentColor);
+  }
+
+  @keyframes rotate {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+}
+
+.gradient-border {
+  position: relative;
+  background: var(--card);
+  border-radius: theme('borderRadius.lg');
+  background-clip: padding-box;
+  transition: all 0.3s ease;
+}
+
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  bottom: -1px;
+  left: -1px;
+  z-index: -1;
+  border-radius: inherit;
+  background: linear-gradient(45deg, rgba(255, 0, 0, 0.1), rgba(168, 85, 247, 0.1));
+  transition: opacity 0.3s ease;
+  opacity: 0;
+}
+
+.gradient-border:hover::before {
+  opacity: 1;
+}
+
+/* Glowing Effects */
+.text-rune {
+  filter: drop-shadow(0 0 8px rgba(255, 0, 0, 0.3));
+}
+
+.text-portal {
+  filter: drop-shadow(0 0 8px rgba(168, 85, 247, 0.3));
+}
+
+/* Enhanced Rune Animations */
+.rotating-rune {
+  animation: rotate 8s linear infinite;
+  transition: all 0.3s ease;
+}
+
+.group:hover .rotating-rune {
+  animation-duration: 4s;
+  stroke-width: 2.5;
+  filter: brightness(1.2) drop-shadow(0 0 12px currentColor);
+}
+
+/* Glass Effect */
+.bg-glass {
+  background: rgba(19, 20, 31, 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 
+    0 8px 32px 0 rgba(0, 0, 0, 0.37),
+    inset 0 0 32px 0 rgba(0, 0, 0, 0.1);
+}
+
+/* Mystical Styles */
+.gradient-dark {
+  background: linear-gradient(to bottom right, #0a0a0f, #1a1a2f);
+}
+
+.gradient-border {
+  position: relative;
+  border-radius: 0.5rem;
+  background: var(--card);
+  padding: 1px;
+}
+
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: 0.5rem;
+  padding: 1px;
+  background: linear-gradient(45deg, rgba(99, 102, 241, 0.2), rgba(168, 85, 247, 0.2));
+  -webkit-mask: 
+    linear-gradient(#fff 0 0) content-box, 
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Glowing Effects */
+.glowing {
+  animation: glow 2s ease-in-out infinite alternate;
+}
+
+@keyframes glow {
+  from {
+    filter: drop-shadow(0 0 2px rgba(var(--glow-color, 255, 0, 0), 0.5))
+           drop-shadow(0 0 4px rgba(var(--glow-color, 255, 0, 0), 0.3));
+  }
+  to {
+    filter: drop-shadow(0 0 4px rgba(var(--glow-color, 255, 0, 0), 0.7))
+           drop-shadow(0 0 8px rgba(var(--glow-color, 255, 0, 0), 0.5));
+  }
+}
+
+/* Enhanced Rune Animations */
+.rotating-rune {
+  animation: rotate 20s linear infinite;
+  transition: all 0.3s ease;
+}
+
+.rotating-rune svg {
+  transition: all 0.3s ease;
+  transform-origin: center;
+}
+
+/* Rune hover effects */
+.group:hover .rotating-rune {
+  animation-duration: 4s;
+  scale: 1.1;
+}
+
+.group:hover .rotating-rune svg {
+  stroke-width: 2.5;
+}
+
+/* Red rune effects */
+.text-rune {
+  --glow-color: 255, 0, 0;
+  filter: drop-shadow(0 0 2px rgba(255, 0, 0, 0.5));
+}
+
+.group:hover .text-rune {
+  filter: drop-shadow(0 0 4px rgba(255, 0, 0, 0.7))
+         drop-shadow(0 0 8px rgba(255, 0, 0, 0.5));
+}
+
+/* Purple rune effects */
+.text-portal {
+  --glow-color: 128, 0, 255;
+  filter: drop-shadow(0 0 2px rgba(128, 0, 255, 0.5));
+}
+
+.group:hover .text-portal {
+  filter: drop-shadow(0 0 4px rgba(128, 0, 255, 0.7))
+         drop-shadow(0 0 8px rgba(128, 0, 255, 0.5));
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Pulse animation for active status */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.05);
+  }
+}
+
+/* Rune power level animation */
+@keyframes powerPulse {
+  0% {
+    stroke-dasharray: 0, 300;
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dasharray: 300, 300;
+    stroke-dashoffset: -300;
+  }
+}
+
+/* Power circle animation */
+.power-circle {
+  stroke-dasharray: 300;
+  stroke-dashoffset: 300;
+  animation: powerPulse 2s ease-in-out infinite;
+}
+
+/* Floating Animation */
+.floating {
+  animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+  0% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+  100% {
+    transform: translateY(0px);
+  }
+}

@@ -40,3 +40,6 @@ ENV/
 # Local development
 task_results/
 .DS_Store
+.windsurfrules
+.cache/41/cache.db
+.cache/41/cache.db

@@ -4,71 +4,86 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-# LMStudio Configuration
-LMSTUDIO_CONFIG = {
-    "base_url": os.getenv('LMSTUDIO_BASE_URL', 'http://localhost:1234/v1'),
-    "api_key": "sk-xxx",  # LMStudio accepts any non-empty string
-    "context_window": 4096,  # Qwen 2.5 supports large context
-}
+# LM Studio Configuration
+config_list = [{
+    "model": "qwen2.5-coder-3b-instruct",
+    "api_base": "http://192.168.7.155:1234/v1",
+    "api_key": "sk-xxx",
+    "api_type": "open_ai"
+}]
 
 # LLM Configuration for AutoGen
 LLM_CONFIG = {
-    "config_list": [{
-        "model": "local-model",  # LMStudio doesn't care about the model name
-        "base_url": LMSTUDIO_CONFIG["base_url"],
-        "api_key": LMSTUDIO_CONFIG["api_key"],
-        "api_type": "open_ai",
-        "request_timeout": 3600  # 1 hour timeout for very long generations
-    }],
-    "temperature": float(os.getenv('TEMPERATURE', 0.7)),
-    "max_tokens": int(os.getenv('MAX_TOKENS', 200)),  # Further reduced max tokens
-    "timeout": 3600,  # Match the request timeout
-    "cache_seed": None  # Disable caching to prevent issues
-}
-
-# Project Configuration
-PROJECT_CONFIG = {
-    "base_dir": os.path.join(os.path.dirname(os.path.dirname(__file__)), "fastapi_project"),
-    "required_dirs": ["app", "tests", "docs"],
-    "templates_dir": os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates")
+    "config_list": config_list,
+    "temperature": 0.7,
+    "max_tokens": 2000,
+    "request_timeout": 600
 }
 
 # Agent Configuration
 AGENT_CONFIG = {
     "architect": {
         "name": "Software_Architect",
-        "system_message": """You are a senior software architect who designs system architecture and makes high-level technical decisions.
+        "system_message": """You are a senior software architect specializing in FastAPI application design.
         Your responsibilities include:
-        1. Analyzing requirements and creating system designs
-        2. Making architectural decisions
-        3. Reviewing and approving technical approaches
-        4. Ensuring scalability and maintainability
-        5. Creating and maintaining project structure
-        You can create and modify files using the provided file utilities.
+        1. Analyzing requirements and creating detailed system designs
+        2. Making architectural decisions about project structure, database schema, and API endpoints
+        3. Providing clear specifications for the developer to implement
+        4. Ensuring best practices in API design and security
+        5. Defining the project structure and dependencies
+        
+        For this FastAPI project, focus on:
+        - Designing a clean, modular project structure
+        - Planning JWT authentication implementation
+        - Designing database models and schemas
+        - Defining API endpoints and their specifications
+        - Specifying security requirements and validation rules
         """
     },
     "developer": {
         "name": "Developer",
-        "system_message": """You are a skilled software developer who implements code based on specifications.
+        "system_message": """You are a skilled Python developer specializing in FastAPI implementation.
         Your responsibilities include:
-        1. Writing clean, efficient code
-        2. Implementing features according to specifications
-        3. Writing unit tests
-        4. Code optimization and refactoring
-        5. Creating and modifying source files
-        You can create and modify files using the provided file utilities.
+        1. Implementing the FastAPI application based on the architect's specifications
+        2. Writing clean, efficient Python code following best practices
+        3. Implementing database models, schemas, and migrations
+        4. Creating secure authentication and authorization systems
+        5. Writing comprehensive tests for all components
+        
+        For this project, you should:
+        - Follow the project structure defined by the architect
+        - Implement JWT authentication using FastAPI's security features
+        - Create SQLAlchemy models and Pydantic schemas
+        - Implement CRUD operations with proper error handling
+        - Write unit tests using pytest
         """
     },
     "tester": {
         "name": "QA_Engineer",
-        "system_message": """You are a QA engineer who ensures code quality through testing.
+        "system_message": """You are a QA engineer specializing in API testing.
         Your responsibilities include:
-        1. Writing and executing test cases
-        2. Performing integration testing
-        3. Identifying and reporting bugs
-        4. Validating fixes and improvements
-        5. Creating and maintaining test files
-        You can create and modify files using the provided file utilities.
+        1. Writing and executing test cases for API endpoints
+        2. Verifying security implementations
+        3. Testing error handling and edge cases
+        4. Validating data models and schemas
+        5. Ensuring API documentation accuracy
+        
+        For this project, focus on:
+        - Testing JWT authentication flows
+        - Verifying CRUD operations for the posts resource
+        - Checking input validation and error responses
+        - Testing database interactions
+        - Validating API documentation against implementation
         """
-    }
+    },
+    "timeout": 600,
+    "seed": 42,
+    "config_list": config_list,
+    "temperature": 0.7
+}
+
+# Project Configuration
+PROJECT_CONFIG = {
+    "workspace": "fastapi_project",
+    "debug": True
 }
